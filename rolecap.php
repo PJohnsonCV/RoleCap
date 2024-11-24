@@ -267,5 +267,3 @@ new RoleCap();
 // then does plugin version check to setup necessary options and installation bits / call upgrade methods
 // - installation adds an option which creates a backup of the user roles before the user tampers with them
 // then adds a submenu page to the users.php menu IF the user has manage-options capability
-
-?>
