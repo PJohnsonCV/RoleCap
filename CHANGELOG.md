@@ -1,5 +1,15 @@
 # ROLECAP Change Log
 
+## [0.1.2] - 2024-11-24
+### Added
+- Fixes.php with three functions wrapped in a class:
+-- Allows addition of manage_options to administrator role
+-- Allows restoration of all roles and cpabilities via wordpress' populate_roles
+-- Allows fallback/direct restoration of all roles manually 
+
+### Changed
+- Removed the closing ?> in rolecap.php for security
+
 ## [0.1.1] - 2024-11-13
 ### Added
 - Nonce fields to both forms and check_admin_referer of those nonces to the form_actions functions
