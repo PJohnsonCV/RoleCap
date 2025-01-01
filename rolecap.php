@@ -2,7 +2,7 @@
 /*
 Plugin Name: Role Capabilities
 Description: View Roles and Capabilities
-Version: 0.1.0
+Version: 0.1.7
 Requires at least: 5.6
 PHP Version: 7.4
 Author: Paul Johnson
@@ -37,96 +37,13 @@ class RoleCap {
     return $capabilities;
   }
 
-  // HTML output of capabilities page
-  // TODO: make this its own file?
-  public function display_submenu() {
-    $roles = get_option('wp_user_roles');
-    $capabilities = $this->parse_capabilities();
-    
-    echo "<div class='wrap'>\n";
-    echo "          <h1>"._e("Capabilities","rolecap")."</h1>\n";
-    echo "          <p>"._e("Manage user capabilities.", "rolecap")."</p>";
-    echo "          <form method='post' action=''>\n";
-    echo wp_nonce_field('rolecap_update_capabilities');
-    echo "          <input type='hidden' name='capability_form_action' value='update_capabilities'>\n";
-    echo "          <table class='wp-list-table widefat fixed striped'>\n";
-    echo "            <thead>\n";
-    echo "              <tr>\n";
-    echo "              <th>Capability</th>\n";
-    // Output role headers
-    foreach ($roles as $role_key => $role) {
-      echo "              <th>".esc_html($role['name'])."</th>\n";
-    }
-    echo "              </tr>\n";
-    echo "            </thead>\n";
-    echo "            <tbody>\n";
-
-    foreach ($capabilities as $capability) {
-        echo "          <tr>\n";
-        echo "            <td>" . esc_html($capability) . "</td>\n";
-        
-        // Check each role for this capability
-        foreach ($roles as $role_key => $role) {
-            $checkbox_name = esc_attr($role_key . '_' . $capability);
-            $checked = isset($role['capabilities'][$capability]) && $role['capabilities'][$capability] ? 'checked' : '';
-            
-            echo '<td>';
-            echo '<input type="checkbox" name="' . esc_html($checkbox_name). '" value="1" ' . esc_html($checked) . '>';
-            echo '</td>';
-        }
-        
-        echo "          </tr>\n";
-    }
-    
-    echo "        </tbody>\n";
-    echo "      </table>\n";
-    echo "      <p><input type='submit' class='button button-primary' value='Save Changes'></p>\n";
-    echo "    </form>\n";
-    // Reset button 
-    $original = get_option(self::ROLECAP_CAPABILITIES_BACKUP_ORIGINAL);
-    echo "    <h2>"._e("Reset", "rolecap")."</h2>\n";
-    echo "    <form method='post' action=''>\n";
-    echo wp_nonce_field('rolecap_reset_capabilities');
-    echo "      <input type='hidden' name='capability_form_action' value='reset_capabilities'>\n";
-    echo "      <p>"._e("Restore the capabilities available when the plugin was installed:","rolecap")."<br>".esc_html($original)." <input type='submit' class='button button-secondary' value='"._e("Reset Defaults", "rolecap")."'></p>\n";
-    echo "    </form>\n";
-    echo "  </div>\n";
-
-    return true;
-  }
-
-  // Handle post actions of capabilities forms
-  public function process_capability_form_submission() {
-    // Function should only run if requested by form submission, not code
-    if (!isset($_POST['capability_form_action'])) {
-      $this->error_logging("process_capability_form_submission didn't get called from a POST request.");
-      return false;
-    }
-
-    // Should only allow users with manage_options ability, typically Administrators 
-    if (!current_user_can('manage_options')) {
-      $this->error_logging("process_capability_form_submission not coming from a user with permission.");
-      return false;
-    }
-
-    // Update form
-    if($_POST['capability_form_action'] === 'update_capabilities') {
-      $this->form_actions_capabilities_update();
-    }
-    // Reset form
-    if($_POST['capability_form_action'] === 'reset_capabilities') {
-      $this->form_actions_capabilities_reset();
-    }
-    return true;
-  }
-
   // Updates the user capabilities based on form submission
   // Loop each row (capability) by each column (user) to get compound names of checkboxes 
   // value of checkbox used to add or remove capability to/from a user
   private function form_actions_capabilities_update() {
     // Only allow valid requests (existence of nonce field)
     if (!check_admin_referer('rolecap_update_capabilities')) {
-      $this->error_logging("form_actions_capabilities_reset didn't have a valid referer.");
+      $this->error_logging("inout_reset_to_install didn't have a valid referer.");
       return false;
     }
     
@@ -160,12 +77,44 @@ class RoleCap {
     $this->dismissable_success("Capabilities updated successfully.");
   }
 
+  // 
+  private function inout_import_serialised_string() {
+    // Check nonce or prevent reset if none.
+    if (!check_admin_referer('rolecap_import_rolecap')) {
+      $this->error_logging("inout_import_serialised_string didn't have a valid referer.", true);
+      return;
+    }
+    // Required string from post
+    if(!isset($_POST['import_string'])) {
+      $this->error_logging("inout_import_serialised_string didn't have a valid import_string field.", true);
+      return;
+    }
+    // is_serialised is a wordpress function
+    // string must match this format to be "genuine"
+    $import_str = $_POST['import_string'];
+    if(!is_serialized($import_str)) {
+      $this->error_logging("inout_import_serialised_string import_string was not a serialised string.", true);
+      return;
+    }
+    // serialised string must contain the manage_options AND have it set to true for at least one user group
+    // most wordpress admin checks look for this option rather than user type or any other setting
+    // so this check prevents killing the admin panel
+    if(strpos($import_str, 's:14:\"manage_options\";b:1;') === false) {
+      $this->error_logging("inout_import_serialised_string didn't contain a manage_options setting set to true.", true);
+      return;
+    }
+
+    // All checks passed, now update the option
+    update_option('wp_user_roles', strip_slashes($import_str), $autoload="yes");
+    $this->dismissable_success("Roles and Capabilities updated to manual input successfully.", "success");
+  }
+
   // Checks request to reset capabilities has come from legitimate header
   // Gets the original settings, overwrites the current ones
-  private function form_actions_capabilities_reset() {
+  private function inout_reset_to_install() {
     // Check nonce or prevent reset if none.
     if (!check_admin_referer('rolecap_reset_capabilities')) {
-      $this->error_logging("form_actions_capabilities_reset didn't have a valid referer.");
+      $this->error_logging("inout_reset_to_install didn't have a valid referer.");
       return;
     }
 
@@ -177,28 +126,116 @@ class RoleCap {
     }
 
     // Success
-    $this->dismissable_success("Capabilities restored successfully.");
+    $this->dismissable_success("Capabilities restored to state at plugin installation successfully.", "success");
   }
+
+  // Handle post actions of inout form
+  // Checks 1) form name is posted, 2) the user has manage_options priveledge, 3) which form action is posted
+  // Successful posts produce function calls for the post type.
+  public function process_submenu_inout_form() {
+    // Function should only run if requested by form submission, not code
+    if (!isset($_POST['capability_form_action'])) {
+      $this->error_logging("process_submenu_inout_form didn't get called from a POST request.");
+      return false;
+    }
+    // Should only allow users with manage_options ability, typically Administrators 
+    if (!current_user_can('manage_options')) {
+      $this->error_logging("process_submenu_inout_form not coming from a user with permission.");
+      return false;
+    }
+
+    // Update form
+//    if($_POST['capability_form_action'] === 'update_capabilities') {
+//      $this->form_actions_capabilities_update();
+//    }
+
+    // Import form in middle of page
+    if($_POST['capability_form_action'] === 'import_capabilities') {
+      $this->inout_import_serialised_string();
+    }
+
+    // Reset form at bottom of page
+    if($_POST['capability_form_action'] === 'reset_capabilities') {
+      $this->inout_reset_to_install();
+    }
+    return true;
+  }
+
+  /*
+  -
+  - Code above: specific functions 
+  - Code below: general plugin activation, installation, update, admin display hooks, error logging
+  -
+  */
 
   // Display a dismissable notice with translated message
   // TODO: modify for success, warning, error
-  private function dismissable_success($message){
-    $message = __($message, "rolecap");
-    add_action('admin_notices', function() {
-      echo "<div class='notice notice-success is-dismissible'><p>$message</p></div>";
+  private function dismissable_success($message, $type){
+    $message = esc_html__($message, "rolecap");
+    $class = "notice notice-{$type} is-dismissible";
+    add_action('admin_notices', function() use ($message, $class) {
+      echo "<div class='{$class}'><p>{$message}</p></div>";
     });
   }
 
+  // Prefix all error messages with [RoleCap plugin] for quick searching
+  private function error_logging($message, $force_notify = false) {
+    $user = wp_get_current_user();
+    $role = !empty($user->roles) ? $user->roles[0] : 'No role assigned';
+    error_log("[RoleCap plugin] {$message} | User:{$user->ID}, Role: {$role}");
+
+    if($force_notify !== false) {
+      $this->dismissable_success($message, "error");
+    }
+  }
+  
+  // HTML output of import/export submenu
+  public function display_submenu_importexport() {
+    $roles = get_option('wp_user_roles');
+    $roles = serialize($roles);
+    $original = get_option(self::ROLECAP_CAPABILITIES_BACKUP_ORIGINAL);
+    
+    include_once plugin_dir_path(__FILE__)."/view/submenu_inout.php";
+    return true;
+  }
+  
+  // HTML output of capabilities submenu
+  public function display_submenu_capabilities() {
+    $roles = get_option('wp_user_roles');
+    $capabilities = $this->parse_capabilities();
+    
+    include_once plugin_dir_path(__FILE__)."/view/submenu_capabilities.php"; 
+    return true;
+  }
+
+  // HTML output of roles submenu
+  public function display_submenu_roles() {
+    $roles = get_option('wp_user_roles');
+
+    include_once plugin_dir_path(__FILE__)."/view/submenu_roles.php"; 
+    return true;
+  }
+  
   // Checks the user is able to manage options then adds a submenu item and hook to the Users admin menu
-  public function add_submenu_item() {
+  public function add_admin_plugin_menu_subs() {
     if (current_user_can('manage_options')) {
-        add_submenu_page("users.php", "RoleCap", "Capabilities", "manage_options", "Capabilities", array($this, 'display_submenu'));
+      add_submenu_page("_rolecap", "RoleCap", "Roles", "manage_options", "Roles", array($this, 'display_submenu_roles'));
+      add_submenu_page("_rolecap", "RoleCap", "Capabilities", "manage_options", "Capabilities", array($this, 'display_submenu_capabilities'));
+      add_submenu_page("_rolecap", "RoleCap", "Import/Export", "manage_options", "Import/Export", array($this, 'display_submenu_importexport'));
       return true;
     } else {
-      $this->error_logging("User cannot manage_options, cannot add_submenu_item.");
+      $this->error_logging("User cannot manage_options, cannot add_admin_plugin_menu_subs.");
       return false;
     }
   }
+
+  // Checks the user is able to manage options then adds a menu item for the plugin
+  public function add_admin_plugin_menu() {
+    if(current_user_can('manage_options')) {
+      add_menu_page('RoleCap', 'RoleCap', 'manage_options', '_rolecap', '', 'dashicons-groups', 71);
+      add_action('admin_menu', function() { remove_submenu_page('_rolecap', '_rolecap'); }, 99);
+    }
+  } 
 
   // All necessary setup for a fresh install
   // Creates a backup of the CURRENT roles and capabilities, not the default WP settings
@@ -225,35 +262,20 @@ class RoleCap {
   public function rolecap_activation_check() {
     // min version check 
     if (version_compare($GLOBALS['wp_version'], self::ROLECAP_MIN_WP_VERSION, '<')) {
-      $this->error_logging("WordPress version too low (".$GLOBALS['wp_version']."). Requires ".self::ROLECAP_MIN_WP_VERSION);
+      $this->error_logging("WordPress version too low ({$GLOBALS['wp_version']}). Requires ".self::ROLECAP_MIN_WP_VERSION);
       wp_die(_e("This plugin requires WordPress ".self::ROLECAP_MIN_WP_VERSION." or higher."));   
     }
     return true;
   }
 
-  // Prefix all error messages with [RoleCap plugin] for quick searching
-  private function error_logging($message) {
-    $user = wp_get_current_user();
-    error_log("[RoleCap plugin] ".$message." | User:".$user->ID.", Role: ".$user->roles[0]);
-  }
-
   // Toot toot, beep beep
   public function __construct() {
-/*    add_action('init', function() {
-      // Get the administrator role
-      $role = get_role('administrator');
-      
-      // Check if the role exists and add the manage_options capability
-      if ($role) {
-          $role->add_cap('manage_options');
-      }
-    });
-*/
     register_activation_hook( __FILE__, array($this, 'rolecap_activation_check')); // Check WP version on plugin activation
 
-    add_action('plugins_loaded', [$this, 'version_check']); // Always check if upgrade functions needed
-    add_action('admin_menu', [$this, 'add_submenu_item']);  // Add the submenu 'page'
-    add_action('admin_init', [$this, 'process_capability_form_submission']); // Listen for form submission 
+    add_action('plugins_loaded', [$this, 'version_check']);              // Always check if upgrade functions needed
+    add_action('admin_menu',     [$this, 'add_admin_plugin_menu']);      // Add the menu 
+    add_action('admin_menu',     [$this, 'add_admin_plugin_menu_subs']); // Add the submenu 'page'
+    add_action('admin_init',     [$this, 'process_submenu_inout_form']); // Listen for form submission 
   }
 }
 } else {

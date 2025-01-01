@@ -7,8 +7,12 @@ if(!class_exists('FixRoleCap')){
   class FixRoleCap {
     public function __construct() {
       // Load WordPress environment
-      echo ("<br>If the following directory is not your root wordpress folder, this will not work: <br>". dirname(__FILE__));
       require_once( dirname(__FILE__) . '/wp-load.php' );
+      if (!defined('ABSPATH')) {
+        die("<br>If the following directory is not your root wordpress folder, this will not work: <br>". dirname(__FILE__));
+      } else {
+        echo "<br>Loaded WP installation, moving to fixing roles and capabilities...<br>";
+      }
     }
 
     public function fix_admin_no_manage_options() {
@@ -163,15 +167,23 @@ if(!class_exists('FixRoleCap')){
     }
   }
 
-  echo "Page found.";
+  //echo "Page found.";
   $fix = new FixRoleCap();
   
   // Use this if the admin account lost manage_options capability
   //$fix->fix_admin_no_manage_options();
-  
+  //
+
   // Use this if all the roles and capabilities are wiped
   // tries to do it the wordpress way, will fallback to a manual method if not
-  //$fix->fix_wp_populate_roles();
+  //
+
+  // If you can't use the fixes.php page, but do have access to your wp databse via phpMyAdmin or something else,
+  // Use the following update:
+  // UPDATE wp_options SET option_value = 'a:1:{s:10:"administrator";a:61:{s:13:"switch_themes";b:1;s:11:"edit_themes";b:1;s:16:"activate_plugins";b:1;s:12:"edit_plugins";b:1;s:10:"edit_users";b:1;s:10:"edit_files";b:1;s:14:"manage_options";b:1;s:17:"moderate_comments";b:1;s:17:"manage_categories";b:1;s:12:"manage_links";b:1;s:7:"upload_files";b:1;s:6:"import";b:1;s:14:"unfiltered_html";b:1;s:10:"edit_posts";b:1;s:11:"edit_others_posts";b:1;s:16:"edit_published_posts";b:1;s:12:"publish_posts";b:1;s:10:"edit_pages";b:1;s:4:"read";b:1;s:6:"level_10";b:1;s:6:"level_9";b:1;s:6:"level_8";b:1;s:6:"level_7";b:1;s:6:"level_6";b:1;s:6:"level_5";b:1;s:6:"level_4";b:1;s:6:"level_3";b:1;s:6:"level_2";b:1;s:6:"level_1";b:1;s:6:"level_0";b:1;s:16:"delete_others_posts";b:1;s:16:"delete_private_posts";b:1;s:18:"delete_published_posts";b:1;s:13:"delete_posts";b:1;s:13:"delete_pages";b:1;s:19:"delete_others_pages";b:1;s:21:"delete_published_pages";b:1;s:19:"delete_private_pages";b:1;s:16:"edit_private_pages";b:1;s:16:"edit_private_posts";b:1;s:18:"edit_published_pages";b:1;s:17:"publish_pages";b:1;s:18:"edit_others_pages";b:1;s:19:"read_private_pages";b:1;s:19:"read_private_posts";b:1;s:15:"delete_users";b:1;s:13:"create_users";b:1;s:17:"unfiltered_upload";b:1;s:15:"edit_dashboard";b:1;s:14:"update_plugins";b:1;s:15:"delete_plugins";b:1;s:15:"install_plugins";b:1;s:14:"update_themes";b:1;s:14:"install_themes";b:1;s:12:"update_core";b:1;s:12:"list_users";b:1;s:15:"remove_users";b:1;s:16:"promote_users";b:1;s:17:"edit_theme_options";b:1;s:13:"delete_themes";b:1;s:7:"export";b:1;}}' WHERE option_name = 'wp_roles';
+  //
+  
+  $fix->fix_wp_populate_roles();
 } else {
   echo "Conflicting Class FixRoleCap exists, cannot run.";
 }
