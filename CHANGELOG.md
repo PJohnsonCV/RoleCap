@@ -1,5 +1,11 @@
 # ROLECAP Change Log
 
+## [0.1.8] - 2025-01-03
+### Changed
+- /view/submenu_inout previously displayed $roles and $original. Removed $roles as intended, and now functional.
+- rolecap.php inout_import_serialised_string() update code changed completely: originally brute forcing update_option, then tried add_role/remove_role to different effect, and finally landed on update_option but reloading roles safely, and adding in more serialized checks and stripslashes so that it actually works.
+- INOUT complete?
+
 ## [0.1.7] - 2025-01-01
 ### Changed
 - inout_import_serialised_string bug checking for presence for an accurate manage_options serialised setting that was previously failing.
