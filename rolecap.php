@@ -89,9 +89,10 @@ class RoleCap {
       $this->error_logging("inout_import_serialised_string didn't have a valid import_string field.", true);
       return;
     }
+
+    $import_str = trim($_POST['import_string']);
     // is_serialised is a wordpress function
     // string must match this format to be "genuine"
-    $import_str = $_POST['import_string'];
     if(!is_serialized($import_str)) {
       $this->error_logging("inout_import_serialised_string import_string was not a serialised string.", true);
       return;
@@ -100,12 +101,32 @@ class RoleCap {
     // most wordpress admin checks look for this option rather than user type or any other setting
     // so this check prevents killing the admin panel
     if(strpos($import_str, 's:14:\"manage_options\";b:1;') === false) {
-      $this->error_logging("inout_import_serialised_string didn't contain a manage_options setting set to true.", true);
+      $this->error_logging("inout_import_serialised_string didn't contain a manage_options setting set to true.\n", true);
+      return;
+    }
+
+    $safe_str = unserialize(stripslashes($import_str)); // Use @ to suppress errors during debugging
+    if ($safe_str === false && $import_str !== 'b:0;') {
+      $this->error_logging("Unserialize failed. Serialized string: " . $import_str);
       return;
     }
 
     // All checks passed, now update the option
-    update_option('wp_user_roles', strip_slashes($import_str), $autoload="yes");
+    global $wp_roles;
+    update_option('wp_user_roles', $safe_str);
+
+    // Reload roles
+    $wp_roles->roles = $safe_str;
+    $wp_roles->role_objects = [];
+    $wp_roles->role_names = [];
+    foreach ($safe_str as $role_group => $role_values) {
+        $wp_roles->role_objects[$role_group] = new WP_Role($role_group, $role_values['capabilities']);
+        $wp_roles->role_names[$role_group] = $role_values['name'];
+    }
+
+    if (function_exists('wp_cache_flush')) {
+        wp_cache_flush();
+    }
     $this->dismissable_success("Roles and Capabilities updated to manual input successfully.", "success");
   }
 
@@ -157,6 +178,7 @@ class RoleCap {
     // Reset form at bottom of page
     if($_POST['capability_form_action'] === 'reset_capabilities') {
       $this->inout_reset_to_install();
+      die("Error here2");
     }
     return true;
   }
