@@ -25,7 +25,7 @@
     <input type='hidden' name='capability_form_action' value='reset_capabilities'>
     <p><?php echo esc_html__("Restore the capabilities available when the plugin was installed:","rolecap"); ?>
     <br>
-    <textarea cols='80' rows='4' readonly><?php echo $roles; ?><?php echo esc_html($original); ?></textarea>
+    <textarea cols='80' rows='4' readonly><?php echo serialize(($original)); ?></textarea>
     <br>
     <input type='submit' class='button button-secondary' value='<?php echo _e("Reset Defaults", "rolecap"); ?>'></p>
   </form>
