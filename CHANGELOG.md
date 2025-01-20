@@ -1,5 +1,11 @@
 # ROLECAP Change Log
 
+## [0.1.9] - 2025-01-20
+### Changed
+- submenu_inout.php added lines to the textareas so more of the current and default views are visible
+- put the warning paragraphs into a singular one with some more emphasis on bricking the site
+- rolecap.php replaced useless code in inout_reset_to_install with functional code. There's minimal error checking, so that could be an improvement later on. 
+
 ## [0.1.8] - 2025-01-03
 ### Changed
 - /view/submenu_inout previously displayed $roles and $original. Removed $roles as intended, and now functional.

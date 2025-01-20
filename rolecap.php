@@ -142,10 +142,28 @@ class RoleCap {
     // Obtain the array of capabilities as defined when the plugin was stored
     // Validate the array before updating the current capabilities with the old ones
     $original = get_option(self::ROLECAP_CAPABILITIES_BACKUP_ORIGINAL);
-    if($original) {
-      update_option('wp_user_roles', $original, $autoload="yes");
+    // Required string from post
+    if(!isset($original)) {
+      $this->error_logging("inout_reset_to_install didn't have a valid import_string field.", true);
+      return;
     }
 
+    // All checks passed, now update the option
+    global $wp_roles;
+    update_option('wp_user_roles', $original);
+
+    // Reload roles
+    $wp_roles->roles = $original;
+    $wp_roles->role_objects = [];
+    $wp_roles->role_names = [];
+    foreach ($original as $role_group => $role_values) {
+        $wp_roles->role_objects[$role_group] = new WP_Role($role_group, $role_values['capabilities']);
+        $wp_roles->role_names[$role_group] = $role_values['name'];
+    }
+
+    if (function_exists('wp_cache_flush')) {
+        wp_cache_flush();
+    }
     // Success
     $this->dismissable_success("Capabilities restored to state at plugin installation successfully.", "success");
   }
@@ -178,7 +196,7 @@ class RoleCap {
     // Reset form at bottom of page
     if($_POST['capability_form_action'] === 'reset_capabilities') {
       $this->inout_reset_to_install();
-      die("Error here2");
+      //die("Error here2");
     }
     return true;
   }
